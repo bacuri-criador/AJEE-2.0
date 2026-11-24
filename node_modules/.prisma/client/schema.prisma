@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Dados pessoais
+model Pessoa {
+  id       Int     @id @default(autoincrement())
+  nome     String
+  cpf      String  @unique
+  email    String  @unique
+  telefone String?
+
+  associado Associado?
+}
+
+// Associado da AJEE
+model Associado {
+  id           Int      @id @default(autoincrement())
+  pessoaId     Int      @unique
+  status       String   @default("ATIVO")
+  dataFiliacao DateTime @default(now())
+
+  pessoa     Pessoa      @relation(fields: [pessoaId], references: [id], onDelete: Restrict)
+  inscricoes Inscricao[]
+  usuario    Usuario?
+}
+
+// Eventos da AJEE
+model Evento {
+  id         Int      @id @default(autoincrement())
+  nome       String
+  dataInicio DateTime
+  dataFim    DateTime
+  ativo      Boolean  @default(true)
+
+  inscricoes Inscricao[]
+}
+
+// Inscrições em eventos
+model Inscricao {
+  id          Int      @id @default(autoincrement())
+  uuid        String   @unique @default(uuid())
+  associadoId Int
+  eventoId    Int
+  status      String   @default("PENDENTE")
+  qrCode      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  associado   Associado    @relation(fields: [associadoId], references: [id], onDelete: Restrict)
+  evento      Evento       @relation(fields: [eventoId], references: [id], onDelete: Restrict)
+  pagamento   Pagamento?
+  certificado Certificado?
+
+  @@unique([associadoId, eventoId])
+}
+
+// Pagamento vinculado à inscrição
+model Pagamento {
+  id            Int       @id @default(autoincrement())
+  inscricaoId   Int       @unique
+  valor         Float
+  status        String    @default("PENDENTE")
+  dataPagamento DateTime?
+
+  inscricao Inscricao @relation(fields: [inscricaoId], references: [id], onDelete: Restrict)
+}
+
+// Certificado vinculado à inscrição
+model Certificado {
+  id          Int      @id @default(autoincrement())
+  inscricaoId Int      @unique
+  codigo      String   @unique
+  dataEmissao DateTime @default(now())
+
+  inscricao Inscricao @relation(fields: [inscricaoId], references: [id], onDelete: Restrict)
+}
+
+// Conta de acesso e autenticação
+model Usuario {
+  id                  Int       @id @default(autoincrement())
+  email               String    @unique
+  senhaHash           String
+  tipo                String    @default("ASSOCIADO")
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  associadoId Int?       @unique
+  associado   Associado? @relation(fields: [associadoId], references: [id], onDelete: Restrict)
+}
